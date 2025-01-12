@@ -1,9 +1,8 @@
 package main
 
 import (
-	"github.com/saipulmuiz/go-project-starter/config"
-
 	"github.com/joho/godotenv"
+	"github.com/saipulmuiz/go-project-starter/config"
 	log "github.com/sirupsen/logrus"
 )
 

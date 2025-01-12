@@ -1,4 +1,4 @@
-# Superindo API
+# Go Project Starter
 
 This is a Golang project for the Superindo API.
 
@@ -16,7 +16,7 @@ This is a Golang project for the Superindo API.
     ```
 2. Navigate to the project directory:
     ```sh
-    cd superindo-api
+    cd go-project-starter
     ```
 3. Install dependencies:
     ```sh
@@ -31,10 +31,6 @@ go run main.go
 ```
 
 The server will start on `http://localhost:8888` and table will be created automatically.
-
-## Documentation
-
-API documentation is available in the `docs` folder. You can import the Postman collection to view and test the API endpoints.
 
 ## Contributing
 
