@@ -1,4 +1,4 @@
-package middlewares
+package middleware
 
 import (
 	"net/http"
@@ -16,7 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Auth() gin.HandlerFunc {
+func AuthMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		token := ctx.Request.Header.Get("Authorization")
 
@@ -30,7 +30,6 @@ func Auth() gin.HandlerFunc {
 		}
 
 		bearer := strings.HasPrefix(token, "Bearer")
-
 		if !bearer {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, models.ResponseError{
 				Message: "Bearer Not Found",
@@ -39,8 +38,8 @@ func Auth() gin.HandlerFunc {
 
 			return
 		}
-		tokenStr := strings.Split(token, "Bearer ")[1]
 
+		tokenStr := strings.Split(token, "Bearer ")[1]
 		if tokenStr == "" {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, models.ResponseError{
 				Message: "Token STR Not Found",

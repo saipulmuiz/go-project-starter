@@ -1,6 +1,6 @@
 # Go Project Starter
 
-This is a Golang project for the Superindo API.
+This is a Golang project starter.
 
 ## Getting Started
 

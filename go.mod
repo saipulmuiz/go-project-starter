@@ -7,11 +7,12 @@ require (
 	github.com/gearintellix/serr v1.1.8
 	github.com/gearintellix/u2 v1.0.9
 	github.com/gin-contrib/cors v1.7.3
-	github.com/gin-contrib/size v1.0.1
+	github.com/gin-contrib/timeout v1.0.2
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-errors/errors v1.5.1
 	github.com/go-playground/validator/v10 v10.23.0
 	github.com/golang/mock v1.6.0
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/joho/godotenv v1.5.1
 	github.com/lunixbochs/vtclean v1.0.0
 	github.com/rivo/uniseg v0.4.7
@@ -19,6 +20,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.31.0
+	golang.org/x/time v0.6.0
 	gopkg.in/DataDog/dd-trace-go.v1 v1.70.3
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/gorm v1.25.12
@@ -110,7 +112,6 @@ require (
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
-	golang.org/x/time v0.6.0 // indirect
 	golang.org/x/tools v0.24.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240520151616-dc85e6b867a5 // indirect

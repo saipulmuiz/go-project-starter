@@ -2,63 +2,70 @@ package rest
 
 import (
 	"os"
+	"time"
 
 	"github.com/gin-contrib/cors"
-	limits "github.com/gin-contrib/size"
+	"github.com/gin-contrib/timeout"
 	"github.com/gin-gonic/gin"
-	api "github.com/saipulmuiz/go-project-starter/service"
-	middlewares "github.com/saipulmuiz/go-project-starter/service/middleware"
-	log "github.com/sirupsen/logrus"
+	"github.com/saipulmuiz/go-project-starter/service"
+	middleware "github.com/saipulmuiz/go-project-starter/service/middleware"
 )
 
 type Handler struct {
-	userUsecase     api.UserUsecase
-	categoryUsecase api.CategoryUsecase
+	userUsecase     service.UserUsecase
+	categoryUsecase service.CategoryUsecase
 }
 
 func CreateHandler(
-	userUsecase api.UserUsecase,
-	categoryUsecase api.CategoryUsecase,
+	userUsecase service.UserUsecase,
+	categoryUsecase service.CategoryUsecase,
 ) *gin.Engine {
 	obj := Handler{
 		userUsecase:     userUsecase,
 		categoryUsecase: categoryUsecase,
 	}
 
-	var maxSize int64 = 1024 * 1024 * 10 //10 MB
-	logger := log.New()
 	r := gin.Default()
-	mainRouter := r.Group("/v1")
 
 	gin.SetMode(gin.DebugMode)
 	if os.Getenv("APP_ENV") == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	corsconfig := cors.DefaultConfig()
-	corsconfig.AllowAllOrigins = true
-	corsconfig.AddAllowHeaders("Authorization")
-	r.Use(cors.New(corsconfig))
-	r.Use(limits.RequestSizeLimiter(maxSize))
-	r.Use(middlewares.ErrorHandler(logger))
+	r.Use(middleware.LoggingMiddleware())
+	r.Use(gin.Recovery())
+	r.Use(timeout.New(
+		timeout.WithTimeout(5*time.Second),
+		timeout.WithHandler(func(c *gin.Context) {
+			c.JSON(200, gin.H{"message": "success"})
+		}),
+	))
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET, POST, PUT, PATCH, DELETE, OPTIONS"},
+		AllowHeaders:     []string{"Access-Control-Allow-Headers", "Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
-	mainRouter.GET("/ping", func(ctx *gin.Context) {
+	publicRouter := r.Group("/v1")
+	publicRouter.GET("/ping", func(ctx *gin.Context) {
 		ctx.JSON(200, gin.H{
-			"message": "pong",
+			"message": "welcome, to golang project starter",
 		})
 	})
+	publicRouter.POST("/register", obj.Register)
+	publicRouter.POST("/login", obj.login)
 
-	mainRouter.POST("/register", obj.Register)
-	mainRouter.POST("/login", obj.login)
-
-	authorizedRouter := mainRouter.Group("/")
-	authorizedRouter.Use(middlewares.Auth())
+	authRouter := publicRouter.Group("/")
+	authRouter.Use(middleware.AuthMiddleware())
 	{
 		// Categories
-		authorizedRouter.GET("/categories", obj.GetCategories)
-		authorizedRouter.POST("/categories", obj.CreateCategory)
-		authorizedRouter.PUT("/categories/:categoryId", obj.UpdateCategory)
-		authorizedRouter.DELETE("/categories/:categoryId", obj.DeleteCategory)
+		authRouter.GET("/categories", obj.GetCategories)
+		authRouter.POST("/categories", obj.CreateCategory)
+		authRouter.PUT("/categories/:categoryId", obj.UpdateCategory)
+		authRouter.DELETE("/categories/:categoryId", obj.DeleteCategory)
 	}
 
 	return r
