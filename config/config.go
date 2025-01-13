@@ -4,12 +4,12 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 	"github.com/saipulmuiz/go-project-starter/pkg/serror"
-	"gorm.io/gorm"
 )
 
 type Config struct {
-	DB     *gorm.DB
+	DB     *sqlx.DB
 	Server *gin.Engine
 }
 

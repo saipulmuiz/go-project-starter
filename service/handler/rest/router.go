@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/timeout"
 	"github.com/gin-gonic/gin"
 	"github.com/saipulmuiz/go-project-starter/service"
 	middleware "github.com/saipulmuiz/go-project-starter/service/middleware"
@@ -34,12 +33,7 @@ func CreateHandler(
 
 	r.Use(middleware.LoggingMiddleware())
 	r.Use(gin.Recovery())
-	r.Use(timeout.New(
-		timeout.WithTimeout(5*time.Second),
-		timeout.WithHandler(func(c *gin.Context) {
-			c.JSON(200, gin.H{"message": "success"})
-		}),
-	))
+	// r.Use(middleware.TimeoutMiddleware(5 * time.Second))
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"GET, POST, PUT, PATCH, DELETE, OPTIONS"},

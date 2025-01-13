@@ -1,72 +1,121 @@
 package repository
 
 import (
-	"github.com/saipulmuiz/go-project-starter/models"
-	api "github.com/saipulmuiz/go-project-starter/service"
+	"context"
+	"database/sql"
+	"time"
 
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/jmoiron/sqlx"
+	"github.com/saipulmuiz/go-project-starter/models"
+	"github.com/saipulmuiz/go-project-starter/pkg/serror"
+	api "github.com/saipulmuiz/go-project-starter/service"
+	"github.com/saipulmuiz/go-project-starter/service/repository/queries"
 )
 
 type categoryRepo struct {
-	db *gorm.DB
+	db *sqlx.DB
 }
 
-func NewCategoryRepo(db *gorm.DB) api.CategoryRepository {
+func NewCategoryRepo(db *sqlx.DB) api.CategoryRepository {
 	return &categoryRepo{db}
 }
 
-func (u *categoryRepo) GetCategories(req models.GetCategoryRequest) (*[]models.Category, int64, error) {
-	var (
-		categories []models.Category
-		count      int64
-	)
-
-	offset := (req.Page - 1) * req.Limit
-
-	err := u.db.
-		Order("created_at DESC").
-		Offset(offset).
-		Limit(req.Limit).
-		Find(&categories).Error
-
+func (r *categoryRepo) CreateCategory(ctx context.Context, req models.CreateCategoryRequest) (categoryId int64, errx serror.SError) {
+	err := r.db.QueryRowxContext(ctx, queries.InsertCategory,
+		req.CategoryName,
+		time.Now(),
+		time.Now(),
+	).Scan(&categoryId)
 	if err != nil {
-		return nil, count, err
+		errx = serror.NewFromError(err)
+		errx.AddComments("[repository][CreateCategory] while QueryRowxContext")
+		return
 	}
 
-	err = u.db.
-		Model(&models.Category{}).
-		Count(&count).Error
-
-	return &categories, count, err
+	return
 }
 
-func (u *categoryRepo) GetCategoryByID(categoryId int64) (*models.Category, error) {
-	var category models.Category
-	err := u.db.Where("category_id = ?", categoryId).First(&category).Error
-	return &category, err
-}
-
-func (u *categoryRepo) CreateCategory(category *models.Category) (*models.Category, error) {
-	return category, u.db.Create(&category).Error
-}
-
-func (u *categoryRepo) UpdateCategory(tx *gorm.DB, categoryId int64, categoryUpdate *models.Category) (*models.Category, error) {
+func (r *categoryRepo) GetCategories(ctx context.Context, req models.GetCategoryRequest) (res []models.Category, errx serror.SError) {
 	var (
-		category models.Category
-		result   *gorm.DB
+		rows *sqlx.Rows
+		err  error
 	)
-	if tx != nil {
-		result = tx.Model(&category).Clauses(clause.Returning{}).Where("category_id", categoryId).Updates(categoryUpdate)
-	} else {
-		result = u.db.Model(&category).Clauses(clause.Returning{}).Where("category_id", categoryId).Updates(categoryUpdate)
+	rows, err = r.db.QueryxContext(ctx, queries.GetCategories)
+	if err != nil && err != sql.ErrNoRows {
+		errx = serror.NewFromError(err)
+		errx.AddCommentf("[repository][GetCategories] while QueryxContext")
+		return
 	}
 
-	return &category, result.Error
+	defer rows.Close()
+
+	for rows.Next() {
+		var tmp models.Category
+		err = rows.StructScan(&tmp)
+		if err != nil {
+			errx = serror.NewFromError(err)
+			errx.AddCommentf("[repository][GetCategories] while StructScan")
+			return
+		}
+
+		res = append(res, tmp)
+	}
+
+	return
 }
 
-func (u *categoryRepo) DeleteCategory(categoryId int64) error {
-	var category models.Category
-	result := u.db.Model(&category).Where("category_id", categoryId).Delete(categoryId)
-	return result.Error
+func (r *categoryRepo) GetCategoryByID(ctx context.Context, categoryId int64) (res models.Category, errx serror.SError) {
+	err := r.db.QueryRowxContext(ctx, queries.GetCategoryByID, categoryId).StructScan(&res)
+	if err != nil && err != sql.ErrNoRows {
+		errx = serror.NewFromError(err)
+		errx.AddCommentf("[repository][GetCategoryByID][CategoryID: %d] while QueryRowxContext queries.GetCategoryByID", categoryId)
+		return
+	}
+
+	return
+}
+
+func (r *categoryRepo) UpdateCategoryByID(ctx context.Context, tx *sqlx.DB, req models.UpdateCategoryRequest) (res models.Category, errx serror.SError) {
+	var err error
+	if tx == nil {
+		_, err = r.db.ExecContext(ctx, queries.UpdateCategoryByID,
+			req.CategoryID,
+			req.CategoryName,
+			time.Now(),
+		)
+	} else {
+		_, err = tx.ExecContext(ctx, queries.UpdateCategoryByID,
+			req.CategoryID,
+			req.CategoryName,
+			time.Now(),
+		)
+	}
+	if err != nil {
+		errx = serror.NewFromError(err)
+		errx.AddCommentf("[repository][UpdateCategoryByID][CategoryID: %d] while ExecContext queries.UpdateCategoryByID", req.CategoryID)
+		return
+	}
+
+	err = r.db.QueryRowxContext(ctx, queries.GetCategoryByID, req.CategoryID).StructScan(&res)
+	if err != nil {
+		errx = serror.NewFromError(err)
+		errx.AddCommentf("[repository][UpdateCategoryByID][CategoryID: %d] while QueryRowxContext queries.GetCategoryByID", req.CategoryID)
+		return
+	}
+
+	return
+}
+
+func (r *categoryRepo) DeleteCategory(ctx context.Context, categoryId int64) (errx serror.SError) {
+	var err error
+	_, err = r.db.ExecContext(ctx, queries.DeleteCategoryByID,
+		categoryId,
+	)
+	if err != nil {
+		errx = serror.NewFromError(err)
+		errx.AddCommentf("[repository][DeleteCategory][CategoryID: %d] while ExecContext queries.DeleteCategory", categoryId)
+		return
+	}
+
+	return
 }

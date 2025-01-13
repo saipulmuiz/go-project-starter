@@ -3,20 +3,20 @@ package models
 import (
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/saipulmuiz/go-project-starter/service/helper"
-	"gorm.io/gorm"
 )
 
 type User struct {
-	UserID    int       `gorm:"not null;uniqueIndex;primaryKey;" json:"user_id"`
-	Name      string    `gorm:"not null;size:256" json:"name"`
-	Email     string    `gorm:"not null;" json:"email"`
-	Password  string    `gorm:"not null;" json:"-"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	UserID    int       `json:"user_id" db:"user_id"`
+	Name      string    `json:"name" db:"name"`
+	Email     string    `json:"email" db:"email"`
+	Password  string    `json:"-" db:"password"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
-type RegisterUser struct {
+type RegisterUserRequest struct {
 	Name     string `json:"name" validate:"required"`
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,min=6"`
@@ -38,7 +38,7 @@ type LoginResponse struct {
 	User  User   `json:"user"`
 }
 
-func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+func (u *User) BeforeCreate(tx *sqlx.DB) (err error) {
 	u.Password = helper.HashPassword(u.Password)
 	return
 }

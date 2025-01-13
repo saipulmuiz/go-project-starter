@@ -12,7 +12,7 @@ import (
 
 func (h *Handler) Register(ctx *gin.Context) {
 	var (
-		request models.RegisterUser
+		request models.RegisterUserRequest
 		errx    serror.SError
 	)
 
@@ -32,7 +32,7 @@ func (h *Handler) Register(ctx *gin.Context) {
 		return
 	}
 
-	_, errx = h.userUsecase.Register(&request)
+	errx = h.userUsecase.Register(ctx, request)
 	if errx != nil {
 		handleError(ctx, errx.Code(), errx)
 		return
@@ -65,7 +65,7 @@ func (h *Handler) login(ctx *gin.Context) {
 		return
 	}
 
-	res, errx := h.userUsecase.Login(&request)
+	res, errx := h.userUsecase.Login(ctx, request)
 	if errx != nil {
 		handleError(ctx, errx.Code(), errx)
 		return

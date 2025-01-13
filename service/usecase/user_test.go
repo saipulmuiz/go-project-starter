@@ -1,83 +1,71 @@
 package usecase
 
 import (
-	"errors"
+	"context"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/saipulmuiz/go-project-starter/models"
+	"github.com/saipulmuiz/go-project-starter/pkg/serror"
 	"github.com/saipulmuiz/go-project-starter/service/helper"
 	"github.com/saipulmuiz/go-project-starter/service/repository/mocks"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/gorm"
 )
 
 func Test_UserUsecase_Register(t *testing.T) {
 	type testCase struct {
 		name             string
 		wantError        bool
-		expectedResponse *models.User
-		request          *models.RegisterUser
-		onRegister       func(mock *mocks.MockUserRepository)
+		expectedResponse serror.SError
+		request          models.RegisterUserRequest
 		onGetUserByEmail func(mock *mocks.MockUserRepository)
+		onRegister       func(mock *mocks.MockUserRepository)
 	}
 
 	var testTable []testCase
 	testTable = append(testTable, testCase{
-		name:      "success",
+		name:      "register user success",
 		wantError: false,
-		request: &models.RegisterUser{
+		request: models.RegisterUserRequest{
 			Name:     "John Doe",
 			Email:    "john@example.com",
 			Password: "password123",
 		},
 		onGetUserByEmail: func(mock *mocks.MockUserRepository) {
-			mock.EXPECT().GetUserByEmail("john@example.com").Return(&models.User{}, nil)
+			mock.EXPECT().GetUserByEmail(gomock.Any(), "john@example.com").Return(models.User{}, nil)
 		},
 		onRegister: func(mock *mocks.MockUserRepository) {
-			mock.EXPECT().Register(&models.User{
-				Name:     "John Doe",
-				Email:    "john@example.com",
-				Password: "password123",
-			}).Return(&models.User{
-				UserID: 1,
-				Name:   "John Doe",
-				Email:  "john@example.com",
-			}, nil)
+			mock.EXPECT().Register(gomock.Any(), gomock.Any()).Return(int64(1), nil)
 		},
-		expectedResponse: &models.User{
-			UserID: 1,
-			Name:   "John Doe",
-			Email:  "john@example.com",
-		},
+		expectedResponse: nil,
 	})
 
 	testTable = append(testTable, testCase{
 		name:      "email already registered",
 		wantError: true,
-		request: &models.RegisterUser{
+		request: models.RegisterUserRequest{
 			Name:     "Jane Doe",
 			Email:    "jane@example.com",
 			Password: "password123",
 		},
 		onGetUserByEmail: func(mock *mocks.MockUserRepository) {
-			mock.EXPECT().GetUserByEmail("jane@example.com").Return(&models.User{UserID: 2}, nil)
+			mock.EXPECT().GetUserByEmail(gomock.Any(), "jane@example.com").Return(models.User{UserID: 1}, nil)
 		},
-		expectedResponse: nil,
+		expectedResponse: serror.New("Email already registered"),
 	})
 
 	testTable = append(testTable, testCase{
 		name:      "error checking user by email",
 		wantError: true,
-		request: &models.RegisterUser{
+		request: models.RegisterUserRequest{
 			Name:     "Error User",
 			Email:    "error@example.com",
 			Password: "password123",
 		},
 		onGetUserByEmail: func(mock *mocks.MockUserRepository) {
-			mock.EXPECT().GetUserByEmail("error@example.com").Return(nil, errors.New("database error"))
+			mock.EXPECT().GetUserByEmail(gomock.Any(), "error@example.com").Return(models.User{}, serror.New("database error"))
 		},
-		expectedResponse: nil,
+		expectedResponse: serror.New("database error"),
 	})
 
 	for _, tc := range testTable {
@@ -97,14 +85,13 @@ func Test_UserUsecase_Register(t *testing.T) {
 
 			usecase := &UserUsecase{userRepo: userRepo}
 
-			resp, err := usecase.Register(tc.request)
+			err := usecase.Register(context.Background(), tc.request)
 
 			if tc.wantError {
 				assert.NotNil(t, err)
-				assert.Nil(t, resp)
 			} else {
 				assert.Nil(t, err)
-				assert.Equal(t, tc.expectedResponse, resp)
+				assert.Equal(t, tc.expectedResponse, err)
 			}
 		})
 	}
@@ -114,8 +101,8 @@ func Test_UserUsecase_Login(t *testing.T) {
 	type testCase struct {
 		name             string
 		wantError        bool
-		expectedResponse *models.LoginResponse
-		request          *models.LoginUser
+		expectedResponse models.LoginResponse
+		request          models.LoginUser
 		onGetUserByEmail func(mock *mocks.MockUserRepository)
 	}
 
@@ -123,45 +110,43 @@ func Test_UserUsecase_Login(t *testing.T) {
 	testTable = append(testTable, testCase{
 		name:      "user not found",
 		wantError: true,
-		request: &models.LoginUser{
+		request: models.LoginUser{
 			Email:    "john@example.com",
 			Password: "password",
 		},
 		onGetUserByEmail: func(mock *mocks.MockUserRepository) {
-			mock.EXPECT().GetUserByEmail("john@example.com").Return(nil, gorm.ErrRecordNotFound)
+			mock.EXPECT().GetUserByEmail(gomock.Any(), "john@example.com").Return(models.User{}, nil)
 		},
 	})
 
 	testTable = append(testTable, testCase{
 		name:      "password does not match",
 		wantError: true,
-		request: &models.LoginUser{
+		request: models.LoginUser{
 			Email:    "john@example.com",
 			Password: "wrongpassword",
 		},
 		onGetUserByEmail: func(mock *mocks.MockUserRepository) {
-			mockUser := &models.User{
+			mockUser := models.User{
 				UserID:   1,
 				Name:     "John Doe",
 				Email:    "john@example.com",
 				Password: helper.HashPassword("password"),
 			}
-			mock.EXPECT().GetUserByEmail("john@example.com").Return(mockUser, nil)
+			mock.EXPECT().GetUserByEmail(gomock.Any(), "john@example.com").Return(mockUser, nil)
 		},
-		expectedResponse: nil,
 	})
 
 	testTable = append(testTable, testCase{
 		name:      "error checking user by email",
 		wantError: true,
-		request: &models.LoginUser{
+		request: models.LoginUser{
 			Email:    "error@example.com",
 			Password: "password",
 		},
 		onGetUserByEmail: func(mock *mocks.MockUserRepository) {
-			mock.EXPECT().GetUserByEmail("error@example.com").Return(nil, errors.New("database error"))
+			mock.EXPECT().GetUserByEmail(gomock.Any(), "error@example.com").Return(models.User{}, serror.New("database error"))
 		},
-		expectedResponse: nil,
 	})
 
 	for _, tc := range testTable {
@@ -177,7 +162,7 @@ func Test_UserUsecase_Login(t *testing.T) {
 
 			usecase := &UserUsecase{userRepo: userRepo}
 
-			resp, err := usecase.Login(tc.request)
+			resp, err := usecase.Login(context.Background(), tc.request)
 
 			if tc.wantError {
 				assert.NotNil(t, err)
