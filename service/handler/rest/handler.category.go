@@ -19,7 +19,7 @@ func (h *Handler) GetCategories(ctx *gin.Context) {
 	page := utint.StringToInt(ctx.Query("page"), 1)
 	limit := utint.StringToInt(ctx.Query("limit"), 10)
 
-	data, totalData, errx := h.categoryUsecase.GetCategories(models.GetCategoryRequest{
+	data, errx := h.categoryUsecase.GetCategories(ctx, models.GetCategoryRequest{
 		Page:  int(page),
 		Limit: int(limit),
 	})
@@ -32,7 +32,7 @@ func (h *Handler) GetCategories(ctx *gin.Context) {
 		Message: "Get categories successfully",
 		Data:    data,
 		Meta: map[string]interface{}{
-			"total_data": totalData,
+			"total_data": 0,
 		},
 	})
 }
@@ -59,7 +59,7 @@ func (h *Handler) CreateCategory(ctx *gin.Context) {
 		return
 	}
 
-	res, errx := h.categoryUsecase.CreateCategory(request)
+	res, errx := h.categoryUsecase.CreateCategory(ctx, request)
 	if errx != nil {
 		handleError(ctx, errx.Code(), errx)
 		return
@@ -93,9 +93,8 @@ func (h *Handler) UpdateCategory(ctx *gin.Context) {
 		return
 	}
 
-	categoryId := utint.StringToInt(ctx.Param("categoryId"), 0)
-
-	res, errx := h.categoryUsecase.UpdateCategory(categoryId, request)
+	request.CategoryID = utint.StringToInt(ctx.Param("categoryId"), 0)
+	res, errx := h.categoryUsecase.UpdateCategory(ctx, request)
 	if errx != nil {
 		handleError(ctx, errx.Code(), errx)
 		return
@@ -112,7 +111,7 @@ func (h *Handler) DeleteCategory(ctx *gin.Context) {
 
 	categoryId := utint.StringToInt(ctx.Param("categoryId"), 0)
 
-	errx = h.categoryUsecase.DeleteCategory(categoryId)
+	errx = h.categoryUsecase.DeleteCategory(ctx, categoryId)
 	if errx != nil {
 		handleError(ctx, errx.Code(), errx)
 		return

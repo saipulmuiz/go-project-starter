@@ -1,16 +1,16 @@
 package usecase
 
 import (
-	"errors"
+	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/saipulmuiz/go-project-starter/models"
 	"github.com/saipulmuiz/go-project-starter/pkg/serror"
 	"github.com/saipulmuiz/go-project-starter/service/repository/mocks"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/gorm"
 )
 
 func Test_CategoryUsecase_GetCategories(t *testing.T) {
@@ -29,12 +29,12 @@ func Test_CategoryUsecase_GetCategories(t *testing.T) {
 		page:      1,
 		size:      10,
 		onGetCategories: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().GetCategories(models.GetCategoryRequest{
+			mock.EXPECT().GetCategories(gomock.Any(), models.GetCategoryRequest{
 				Page:  1,
 				Limit: 10,
-			}).Return(&[]models.Category{
+			}).Return([]models.Category{
 				{CategoryID: 1, CategoryName: "Category 1"},
-			}, int64(1), nil)
+			}, nil)
 		},
 		expectedResponse: []models.GetCategoryResponse{
 			{
@@ -52,10 +52,10 @@ func Test_CategoryUsecase_GetCategories(t *testing.T) {
 		page:      1,
 		size:      10,
 		onGetCategories: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().GetCategories(models.GetCategoryRequest{
+			mock.EXPECT().GetCategories(gomock.Any(), models.GetCategoryRequest{
 				Page:  1,
 				Limit: 10,
-			}).Return(nil, int64(0), errors.New("some error"))
+			}).Return(nil, serror.New("some error"))
 		},
 	})
 
@@ -74,7 +74,7 @@ func Test_CategoryUsecase_GetCategories(t *testing.T) {
 				categoryRepo: categoryRepo,
 			}
 
-			resp, _, err := service.GetCategories(models.GetCategoryRequest{
+			resp, err := service.GetCategories(context.Background(), models.GetCategoryRequest{
 				Page:  tc.page,
 				Limit: tc.size,
 			})
@@ -106,16 +106,13 @@ func Test_CategoryUsecase_CreateCategory(t *testing.T) {
 		},
 		wantError: false,
 		onCreateCategory: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().CreateCategory(gomock.Any()).Return(&models.Category{
-				CategoryID:   1,
-				CategoryName: "New Category",
-			}, nil)
+			mock.EXPECT().CreateCategory(gomock.Any(), gomock.Any()).Return(int64(1), nil)
 		},
 		expectedResponse: &models.GetCategoryResponse{
 			CategoryID:   1,
 			CategoryName: "New Category",
-			CreatedAt:    "0001-01-01 00:00:00",
-			UpdatedAt:    "0001-01-01 00:00:00",
+			CreatedAt:    time.Now().Format("2006-01-02 15:04:05"),
+			UpdatedAt:    time.Now().Format("2006-01-02 15:04:05"),
 		},
 	})
 
@@ -126,7 +123,7 @@ func Test_CategoryUsecase_CreateCategory(t *testing.T) {
 		},
 		wantError: true,
 		onCreateCategory: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().CreateCategory(gomock.Any()).Return(nil, errors.New("some error"))
+			mock.EXPECT().CreateCategory(gomock.Any(), gomock.Any()).Return(int64(0), serror.New("some error"))
 		},
 	})
 
@@ -145,7 +142,7 @@ func Test_CategoryUsecase_CreateCategory(t *testing.T) {
 				categoryRepo: categoryRepo,
 			}
 
-			resp, err := service.CreateCategory(tc.request)
+			resp, err := service.CreateCategory(context.Background(), tc.request)
 
 			if tc.wantError {
 				assert.NotNil(t, err)
@@ -159,13 +156,13 @@ func Test_CategoryUsecase_CreateCategory(t *testing.T) {
 
 func Test_CategoryUsecase_UpdateCategory(t *testing.T) {
 	type testCase struct {
-		name             string
-		categoryId       int64
-		request          models.UpdateCategoryRequest
-		wantError        bool
-		onGetCategory    func(mock *mocks.MockCategoryRepository)
-		onUpdateCategory func(mock *mocks.MockCategoryRepository)
-		expectedResponse *models.GetCategoryResponse
+		name              string
+		categoryId        int64
+		request           models.UpdateCategoryRequest
+		wantError         bool
+		onGetCategoryByID func(mock *mocks.MockCategoryRepository)
+		onUpdateCategory  func(mock *mocks.MockCategoryRepository)
+		expectedResponse  *models.GetCategoryResponse
 	}
 
 	var testTable []testCase
@@ -176,13 +173,11 @@ func Test_CategoryUsecase_UpdateCategory(t *testing.T) {
 			CategoryName: "Updated Category",
 		},
 		wantError: false,
-		onGetCategory: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().GetCategoryByID(int64(1)).Return(&models.Category{CategoryID: 1}, nil)
+		onGetCategoryByID: func(mock *mocks.MockCategoryRepository) {
+			mock.EXPECT().GetCategoryByID(gomock.Any(), gomock.Any()).Return(models.Category{CategoryID: 1}, nil)
 		},
 		onUpdateCategory: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().UpdateCategory(gomock.Any(), int64(1), gomock.Any()).Return(&models.Category{
-				CategoryID: int64(1), CategoryName: "Updated Category",
-			}, nil)
+			mock.EXPECT().UpdateCategoryByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(models.Category{CategoryID: 1, CategoryName: "Updated Category"}, nil)
 		},
 		expectedResponse: &models.GetCategoryResponse{
 			CategoryID:   int64(1),
@@ -199,8 +194,8 @@ func Test_CategoryUsecase_UpdateCategory(t *testing.T) {
 			CategoryName: "Updated Category",
 		},
 		wantError: true,
-		onGetCategory: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().GetCategoryByID(int64(1)).Return(nil, gorm.ErrRecordNotFound)
+		onGetCategoryByID: func(mock *mocks.MockCategoryRepository) {
+			mock.EXPECT().GetCategoryByID(gomock.Any(), gomock.Any()).Return(models.Category{CategoryID: 0}, nil)
 		},
 	})
 
@@ -211,8 +206,8 @@ func Test_CategoryUsecase_UpdateCategory(t *testing.T) {
 			CategoryName: "Updated Category",
 		},
 		wantError: true,
-		onGetCategory: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().GetCategoryByID(int64(1)).Return(nil, errors.New("some error"))
+		onGetCategoryByID: func(mock *mocks.MockCategoryRepository) {
+			mock.EXPECT().GetCategoryByID(gomock.Any(), gomock.Any()).Return(models.Category{}, serror.New("some error"))
 		},
 	})
 
@@ -223,8 +218,8 @@ func Test_CategoryUsecase_UpdateCategory(t *testing.T) {
 
 			categoryRepo := mocks.NewMockCategoryRepository(mockCtrl)
 
-			if tc.onGetCategory != nil {
-				tc.onGetCategory(categoryRepo)
+			if tc.onGetCategoryByID != nil {
+				tc.onGetCategoryByID(categoryRepo)
 			}
 			if tc.onUpdateCategory != nil {
 				tc.onUpdateCategory(categoryRepo)
@@ -234,7 +229,7 @@ func Test_CategoryUsecase_UpdateCategory(t *testing.T) {
 				categoryRepo: categoryRepo,
 			}
 
-			resp, err := service.UpdateCategory(tc.categoryId, tc.request)
+			resp, err := service.UpdateCategory(context.Background(), tc.request)
 
 			if tc.wantError {
 				assert.NotNil(t, err)
@@ -262,10 +257,10 @@ func Test_CategoryUsecase_DeleteCategory(t *testing.T) {
 		categoryId: 1,
 		wantError:  false,
 		onGetCategoryByID: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().GetCategoryByID(int64(1)).Return(&models.Category{CategoryID: int64(1)}, nil)
+			mock.EXPECT().GetCategoryByID(gomock.Any(), int64(1)).Return(models.Category{CategoryID: int64(1)}, nil)
 		},
 		onDeleteCategory: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().DeleteCategory(int64(1)).Return(nil)
+			mock.EXPECT().DeleteCategory(gomock.Any(), int64(1)).Return(nil)
 		},
 	})
 
@@ -274,7 +269,7 @@ func Test_CategoryUsecase_DeleteCategory(t *testing.T) {
 		categoryId: 1,
 		wantError:  true,
 		onGetCategoryByID: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().GetCategoryByID(int64(1)).Return(nil, gorm.ErrRecordNotFound)
+			mock.EXPECT().GetCategoryByID(gomock.Any(), int64(1)).Return(models.Category{}, nil)
 		},
 		expectedError: serror.Newi(http.StatusNotFound, "Category not found"),
 	})
@@ -284,9 +279,9 @@ func Test_CategoryUsecase_DeleteCategory(t *testing.T) {
 		categoryId: 1,
 		wantError:  true,
 		onGetCategoryByID: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().GetCategoryByID(int64(1)).Return(nil, errors.New("some error"))
+			mock.EXPECT().GetCategoryByID(gomock.Any(), int64(1)).Return(models.Category{}, serror.New("some error"))
 		},
-		expectedError: serror.NewFromError(errors.New("some error")),
+		expectedError: serror.NewFromError(serror.New("some error")),
 	})
 
 	testTable = append(testTable, testCase{
@@ -294,12 +289,12 @@ func Test_CategoryUsecase_DeleteCategory(t *testing.T) {
 		categoryId: 1,
 		wantError:  true,
 		onGetCategoryByID: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().GetCategoryByID(int64(1)).Return(&models.Category{CategoryID: int64(1)}, nil)
+			mock.EXPECT().GetCategoryByID(gomock.Any(), int64(1)).Return(models.Category{CategoryID: int64(1)}, nil)
 		},
 		onDeleteCategory: func(mock *mocks.MockCategoryRepository) {
-			mock.EXPECT().DeleteCategory(int64(1)).Return(errors.New("some error"))
+			mock.EXPECT().DeleteCategory(gomock.Any(), int64(1)).Return(serror.New("some error"))
 		},
-		expectedError: serror.NewFromError(errors.New("some error")),
+		expectedError: serror.NewFromError(serror.New("some error")),
 	})
 
 	for _, tc := range testTable {
@@ -320,7 +315,7 @@ func Test_CategoryUsecase_DeleteCategory(t *testing.T) {
 				categoryRepo: categoryRepo,
 			}
 
-			err := service.DeleteCategory(tc.categoryId)
+			err := service.DeleteCategory(context.Background(), tc.categoryId)
 
 			if tc.wantError {
 				assert.NotNil(t, err)

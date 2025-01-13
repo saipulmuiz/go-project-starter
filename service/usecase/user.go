@@ -1,14 +1,13 @@
 package usecase
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/saipulmuiz/go-project-starter/models"
 	"github.com/saipulmuiz/go-project-starter/pkg/serror"
 	api "github.com/saipulmuiz/go-project-starter/service"
 	"github.com/saipulmuiz/go-project-starter/service/helper"
-
-	"gorm.io/gorm"
 )
 
 type UserUsecase struct {
@@ -23,15 +22,15 @@ func NewUserUsecase(
 	}
 }
 
-func (u *UserUsecase) Register(request *models.RegisterUser) (user *models.User, errx serror.SError) {
-	userArgs := &models.User{
+func (u *UserUsecase) Register(ctx context.Context, request models.RegisterUserRequest) (errx serror.SError) {
+	userArgs := models.RegisterUserRequest{
 		Name:     request.Name,
 		Email:    request.Email,
 		Password: request.Password,
 	}
 
-	userCheck, err := u.userRepo.GetUserByEmail(request.Email)
-	if err != nil && err != gorm.ErrRecordNotFound {
+	userCheck, err := u.userRepo.GetUserByEmail(ctx, request.Email)
+	if err != nil {
 		errx = serror.NewFromError(err)
 		errx.AddCommentf("[usecase][Register] Failed to get user by email, [email: %s]", request.Email)
 		return
@@ -42,7 +41,7 @@ func (u *UserUsecase) Register(request *models.RegisterUser) (user *models.User,
 		return
 	}
 
-	user, err = u.userRepo.Register(userArgs)
+	_, err = u.userRepo.Register(ctx, userArgs)
 	if err != nil {
 		errx = serror.NewFromError(err)
 		errx.AddCommentf("[usecase][Register] Failed to register user, [email: %s]", request.Email)
@@ -52,16 +51,15 @@ func (u *UserUsecase) Register(request *models.RegisterUser) (user *models.User,
 	return
 }
 
-func (u *UserUsecase) Login(request *models.LoginUser) (res models.LoginResponse, errx serror.SError) {
-	userDB, err := u.userRepo.GetUserByEmail(request.Email)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			errx = serror.Newi(http.StatusNotFound, "User not found")
-			return
-		}
-
-		errx = serror.NewFromError(err)
+func (u *UserUsecase) Login(ctx context.Context, request models.LoginUser) (res models.LoginResponse, errx serror.SError) {
+	userDB, errx := u.userRepo.GetUserByEmail(ctx, request.Email)
+	if errx != nil {
 		errx.AddCommentf("[usecase][Login] Failed to get user by email, [email: %s]", request.Email)
+		return
+	}
+
+	if userDB.UserID == 0 {
+		errx = serror.Newi(http.StatusNotFound, "User not found")
 		return
 	}
 
@@ -75,7 +73,7 @@ func (u *UserUsecase) Login(request *models.LoginUser) (res models.LoginResponse
 
 	res = models.LoginResponse{
 		Token: token,
-		User:  *userDB,
+		User:  userDB,
 	}
 
 	return

@@ -3,10 +3,10 @@ package models
 import "time"
 
 type Category struct {
-	CategoryID   int64     `gorm:"not null;uniqueIndex;primaryKey;" json:"category_id"`
-	CategoryName string    `json:"category_name"`
-	CreatedAt    time.Time `json:"created_at,omitempty"`
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	CategoryID   int64     `json:"category_id" db:"category_id"`
+	CategoryName string    `json:"category_name" db:"category_name"`
+	CreatedAt    time.Time `json:"created_at,omitempty" db:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at,omitempty" db:"updated_at"`
 }
 
 type GetCategoryRequest struct {
@@ -26,6 +26,7 @@ type CreateCategoryRequest struct {
 }
 
 type UpdateCategoryRequest struct {
+	CategoryID   int64  `json:"category_id"`
 	CategoryName string `json:"category_name" validate:"required"`
 }
 

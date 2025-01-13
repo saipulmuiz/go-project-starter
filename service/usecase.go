@@ -1,18 +1,20 @@
 package service
 
 import (
+	"context"
+
 	"github.com/saipulmuiz/go-project-starter/models"
 	"github.com/saipulmuiz/go-project-starter/pkg/serror"
 )
 
 type UserUsecase interface {
-	Register(request *models.RegisterUser) (user *models.User, errx serror.SError)
-	Login(request *models.LoginUser) (res models.LoginResponse, errx serror.SError)
+	Register(ctx context.Context, request models.RegisterUserRequest) (errx serror.SError)
+	Login(ctx context.Context, request models.LoginUser) (res models.LoginResponse, errx serror.SError)
 }
 
 type CategoryUsecase interface {
-	GetCategories(req models.GetCategoryRequest) (res []models.GetCategoryResponse, totalData int64, errx serror.SError)
-	CreateCategory(request models.CreateCategoryRequest) (res *models.GetCategoryResponse, errx serror.SError)
-	UpdateCategory(productId int64, request models.UpdateCategoryRequest) (res *models.GetCategoryResponse, errx serror.SError)
-	DeleteCategory(productId int64) (errx serror.SError)
+	GetCategories(ctx context.Context, req models.GetCategoryRequest) (res []models.GetCategoryResponse, errx serror.SError)
+	CreateCategory(ctx context.Context, req models.CreateCategoryRequest) (res *models.GetCategoryResponse, errx serror.SError)
+	UpdateCategory(ctx context.Context, req models.UpdateCategoryRequest) (res *models.GetCategoryResponse, errx serror.SError)
+	DeleteCategory(ctx context.Context, categoryId int64) (errx serror.SError)
 }
